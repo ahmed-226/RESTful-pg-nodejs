@@ -1,6 +1,6 @@
 # Node.js RESTful API Server with PostgreSQL
 
-This repository contains the source code for a RESTful API server built with Node.js and PostgreSQL. The API server provides endpoints for managing resources such as users, posts, comments, etc.
+This repository contains the source code for a RESTful API server built with Node.js and PostgreSQL. The API server provides endpoints for managing resources such as categories, products, etc.
 
 ## Prerequisites
 
