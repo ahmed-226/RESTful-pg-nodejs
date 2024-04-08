@@ -7,17 +7,16 @@ import { text } from "express";
 
 dotenv.config()
 
-const getAllUsers=async (req, res) => {
+export const getAllUsers=async (req, res) => {
     try{
-        const result = await dataBase.query(`
-            Select * from Users`)
+        const result = await dataBase.query(`Select * from Users`)
         return res.status(200).json(result.rows);
     }catch(e){
         return res.status(500).json({error:e.message});
     }
 }
 
-const getUserById = async (req, res) => {
+export const getUserById = async (req, res) => {
     try{
 
         const id=req.params.id
@@ -30,7 +29,7 @@ const getUserById = async (req, res) => {
                     `,
                 values:[id]
             })
-        return res.status(200).json(result.rows);
+        return res.status(200).json(result.rows[0]);
     }catch(e){
         return res.status(500).json({error:e.message});
     }
@@ -57,23 +56,49 @@ export const register = async (req, res) => {
             return res.status(409).json({error: ` User ${firstName} ${lastName} already exist `})
         }
 
-        
-        const result= await dataBase.query(
+        const hashedpassword = await bcrypt.hash(password, 10)
+        let result= await dataBase.query(
             {
-                text: `insert into Users(firstName, lastName,email, password,role) 
-                        values ($1,$2,$3,$4,$5) 
-                        returning *`,
+                text:   
+                    `
+                    insert into Users(firstName, lastName,email, password,token,role) 
+                    values ($1,$2,$3,$4,$5,$6) 
+                    returning *
+                    `,
                 values:
                     [
                         firstName, 
                         lastName,
                         email, 
-                        password,
+                        hashedpassword,
+                        null,
                         role ? role :'user',
 
                     ]
             }
         )
+
+        const user=result.rows[0]
+        const token =await geenrateJWT({email:email,id:user.id,role:user.role})
+
+        result= await dataBase.query(
+            {
+                text:   
+                    `
+                    update Users 
+                    set token=$1 
+                    where email=$2
+                    returning *
+                    `,
+                values:
+                    [   
+                        token,
+                        email
+                    ]
+            }
+        )
+
+
         return res.status(200).json(result.rows[0]);
 
         }catch(e){
@@ -83,9 +108,10 @@ export const register = async (req, res) => {
 }
 
 export const login = async(req, res) =>{
+
     const {email, password}=req.body
     if(!email && !password){
-        return res.status(309).json({status:"Fail",msg:'This users is not exist'})
+        return res.status(309).json({status:"Fail",msg:'All fields are required'})
     }
 
     const existResult=await dataBase.query({
